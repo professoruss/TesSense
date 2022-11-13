@@ -33,6 +33,7 @@ Requires the installation of TeslaPy, and several other libraries document in th
 
 python3 -m pip install teslapy
 
+---
 
 PROFESSORUSS UPDATES:
 
@@ -40,11 +41,11 @@ Externalize configs to config.py
 Add requirements.txt
 
 setup locally to pull tesla auth (need to figure out how to do this step without a browser, or how to refresh when needed)
-pip install -r requirements.txt
-python ./TesSense.py
+`pip install -r requirements.txt
+python ./TesSense.py`
 
 Build Docker Container:
-docker build -t tessense .
+`docker build -t tessense .`
 
 Run in a container:
-docker run -it -e TZ=America/Los_Angeles -v ${PWD}/cache.json:/TesSense/cache.json -v ${PWD}/config.py:/TesSense/config.py tessense
+`docker run -it -e TZ=America/Los_Angeles -v ${PWD}/cache.json:/TesSense/cache.json -v ${PWD}/config.py:/TesSense/config.py tessense`
