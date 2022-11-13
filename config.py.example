@@ -1,0 +1,7 @@
+teslausername = '******' # Tesla's login
+senseusername = '******' # Sense's login
+tplinkusername = '*****' # TPLink's login
+sensepass = '*******'    # Sense's password, Tesla will prompt for it's own
+TPassword = '*******'    # TPLink's password
+lat= **.***              # Lattitude where charging will occur (shown at startup)
+lon= -***.***            # Longitude where charging will occur (shown at startup)

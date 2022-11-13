@@ -11,11 +11,14 @@
  Added: ability to find TP-Link devices on the network and control them
  Added: tracks cabin temp and local chargers, vents the car if it gets too hot
 """
-
-username = 'elon@tesla.com'             # Sense's and TPLink's and Tesla's login
-sensepass = 'sense password'            # Sense's password, Tesla will prompt for it's own
-TPassword = 'TPLink password'           # TPLink's password
-lat, lon  = 38, -122                    # Location where charging will occur (shown at startup)
+import config
+teslausername = config.teslausername             # Tesla's login
+senseusername = config.senseusername             # Sense's login
+tplinkusername = config.tplinkusername           # TPLink's login
+sensepass = config.sensepass                     # Sense's password, Tesla will prompt for it's own
+TPassword = config.TPassword                     # TPLink's password
+lat = config.lat                                 # Location where charging will occur (shown at startup)
+lon = config.lon                                 # Location where charging will occur (shown at startup)
 controllist = 0 #["Lamp", "TV", "Heater"]  # Replace '0' with a list of named devices to control
 
 import datetime, asyncio
@@ -30,7 +33,7 @@ handler = logging.StreamHandler(sys.stdout)
 from sense_energy import Senseable
 print ("Initating connection to Sense...")
 sense = Senseable(wss_timeout=30,api_timeout=30)
-sense.authenticate(username, sensepass)
+sense.authenticate(senseusername, sensepass)
 
 # pip3 install teslapy
 import teslapy
@@ -49,7 +52,7 @@ def printerror(error, err) :                               # Error message with 
 
 def printmsg(msg) :                                        # Timestamped message
     print( " ", datetime.datetime.now().strftime( "%a %I:%M %p" ), msg )
-    
+
 def PrintUpdate(chargedata, fast) :                        # Display stats at every % change
     print( "\nLevel:",
         chargedata['battery_level'], "%, Limit",
@@ -65,7 +68,7 @@ def PrintUpdate(chargedata, fast) :                        # Display stats at ev
     else : print(chargedata['charger_actual_current'], "of a possible",
         chargedata['charge_current_request_max'], "Amps,",
         chargedata['time_to_full_charge'], "Hours remaining\n" )
-        
+
 def PrintTemp(car) :
     if car.get_latest_vehicle_data()['climate_state']['inside_temp'] > 40 : # 104°F
         if not car.get_latest_vehicle_data()['vehicle_state']['fd_window'] : # Not Open
@@ -118,7 +121,7 @@ def SuperCharging(chargedata) :                            # Loop while DC Fast 
         printmsg("DC Fast Charging...")
         PrintUpdate(chargedata, 1)
         return(True)
-        
+
 def UpdateSense() :                                        # Update Sense info via Sense API
     global power_diff, volts
     try :
@@ -132,7 +135,7 @@ def UpdateSense() :                                        # Update Sense info v
         asp = int(sense.active_solar_power)
         ap = int(sense.active_power)
         power_diff = asp-ap                                # Watts being sent back to the grid
-        
+
 def Vent(car, command) :
     print("\033[31mWindows will now", command, "\033[m")
     try :
@@ -153,13 +156,13 @@ async def TesSense() :
     minrate = 2                                            # Minimum rate you can set the charger to
 
     retry = teslapy.Retry(total=3, status_forcelist=(500, 502, 503, 504))
-    with teslapy.Tesla(username, retry=retry, timeout=20) as tesla:
+    with teslapy.Tesla(teslausername, retry=retry, timeout=20) as tesla:
         vehicles = tesla.vehicle_list()
-        
+
         if vehicles[0].get_vehicle_summary()['in_service'] :
             print("Sorry. Currently this car is in for service")
             exit()
-        
+
         print("Starting connection to", vehicles[0].get_vehicle_summary()['display_name'])
 
         while (True):                                      # Main loop with night time carve out
@@ -171,13 +174,13 @@ async def TesSense() :
                 else:
                     await asyncio.sleep(60 * (60 - datetime.datetime.now().time().minute))
                     continue
-                    
+
             if UpdateSense() :                             # Collect new data from Energy Monitor
                 await asyncio.sleep(20)                    # Error: Return to top of order
                 continue
 
             minwatts = minrate * volts                     # Calc minwatts needed to start charging
-                
+
             if not vehicles[0].available() :               # Check if car is sleeping i.e. not available()
                 if power_diff > minwatts and not fullORunplugged :
                     if Wake(vehicles[0]):                  # Initial daytime wake() also, to get status
@@ -188,7 +191,7 @@ async def TesSense() :
                         await asyncio.sleep(1200)          # Give the API a chance to find the car
                         continue
                 else : print("Sleeping, free power is", power_diff, "watts" )
-                
+
             else :                                         # Car is awake
                 try :
                     cardata = vehicles[0].get_vehicle_data() # Collect new data from Tesla
@@ -198,11 +201,11 @@ async def TesSense() :
                     continue
 
                 chargedata = cardata['charge_state']
-                    
+
                 if SuperCharging(chargedata) :             # Display any Supercharging or DCFC data
                     await asyncio.sleep(120)               # Loop while Supercharging back to top
                     continue
-                    
+
                 if round(cardata['drive_state']['latitude'], 3) != lat and \
                    round(cardata['drive_state']['longitude'], 3) != lon :
                     print(round(vehicles[0].get_latest_vehicle_data()['drive_state']['latitude'], 3), round(vehicles[0].get_latest_vehicle_data()['drive_state']['longitude'], 3), end='')
@@ -232,10 +235,10 @@ async def TesSense() :
                     if  level != chargedata['battery_level'] or limit != chargedata['charge_limit_soc'] :
                         level, limit = chargedata['battery_level'], chargedata['charge_limit_soc']
                         PrintUpdate(chargedata, 0)         # Display charging info every % change
-                        
+
                     rate = chargedata['charger_actual_current']
                     newrate = min(rate + int(power_diff/volts), chargedata['charge_current_request_max'])
-                                                           
+
                     print( "Charging at", rate, "amps, with", power_diff, "watts surplus" )
 
                     if newrate < minrate :                 # Stop charging as there's no free power
@@ -252,9 +255,9 @@ async def TesSense() :
                     lastime = vehicles[0].get_latest_vehicle_data()['climate_state']['timestamp']
                     PrintTemp(vehicles[0])                     # Display cabin temp and fan use
             except: pass
-            printmsg(" Wait two minutes...")               # Message after every complete loop
-            await asyncio.sleep(120)                       # Fastest the Sense API will update is 30 sec.
-            
+            printmsg(" Wait one minute...")               # Message after every complete loop
+            await asyncio.sleep(60)                       # Fastest the Sense API will update is 30 sec.
+
 
 async def CheckTPLink() :                       # Based on github.com/piekstra/tplinkcloud-service
     global output
@@ -263,9 +266,9 @@ async def CheckTPLink() :                       # Based on github.com/piekstra/t
         print("=" * len(msg))
         print(msg)
         print("-" * len(msg))
-    
+
     printmsg("Looking for TPLink smartplugs")
-    device_manager = TPLinkDeviceManager(username, TPassword)
+    device_manager = TPLinkDeviceManager(tplinkusername, TPassword)
     power_manager  = TPLinkDeviceManagerPowerTools(device_manager)
     devices = await power_manager.get_emeter_devices()
     if not devices : printmsg("No TPLink (KASA) E-Meter devices found")
@@ -341,13 +344,13 @@ async def main():                                          # Much thanks to cbpo
     global mutable_plug
     # Create controller, with NO config
     controller = SenseLink(None)
-    
+
     # Create a PlugInstance, setting at least the name for Sense and MAC
     mutable_plug = PlugInstance("mutable", alias="Tesla", mac="53:75:31:f8:3a:8c")
     # Create and assign a Mutable Data Source to that plug
     mutable_data_source = MutableSource("mutable", None)
     mutable_plug.data_source = mutable_data_source
-    
+
     # Add that plug to the controller
     controller.add_instances({mutable_plug.identifier: mutable_plug})
 
