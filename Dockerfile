@@ -9,4 +9,4 @@ RUN touch cache.json
 
 RUN pip install --no-cache-dir -r requirements.txt
 
-CMD [ "python", "./TesSense.py" ]
+CMD [ "python", "/TesSense/TesSense.py" ]
