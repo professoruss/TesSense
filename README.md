@@ -35,14 +35,14 @@ python3 -m pip install teslapy
 
 ---
 
-PROFESSORUSS UPDATES:
+professoruss updates:
 
 Externalize configs to config.py
 Add requirements.txt
 
 setup locally to pull tesla auth (need to figure out how to do this step without a browser, or how to refresh when needed)
-`pip install -r requirements.txt
-python ./TesSense.py`
+`pip install -r requirements.txt`
+`python ./TesSense.py`
 
 Build Docker Container:
 `docker build -t tessense .`
